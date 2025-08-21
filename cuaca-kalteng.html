@@ -1,0 +1,79 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Prakiraan Cuaca Kalimantan Tengah</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        body {
+            font-family: sans-serif;
+            background-color: #f9fafb;
+        }
+    </style>
+</head>
+<body class="p-2">
+    <div id="cuaca-container" class="space-y-4">
+        <p class="text-center text-gray-500">Memuat data prakiraan cuaca...</p>
+    </div>
+
+    <script>
+        async function fetchWeatherData() {
+            const container = document.getElementById('cuaca-container');
+            const dataUrl = 'https://raw.githubusercontent.com/infoBMKG/data-cuaca/main/DigitalForecast-KalimantanTengah.xml';
+            const proxyUrl = `https://api.allorigins.win/raw?url=${encodeURIComponent(dataUrl)}`;
+
+            try {
+                const response = await fetch(proxyUrl);
+                if (!response.ok) throw new Error('Gagal mengambil data cuaca');
+                
+                const xmlString = await response.text();
+                const parser = new DOMParser();
+                const xmlDoc = parser.parseFromString(xmlString, "application/xml");
+
+                const areas = xmlDoc.querySelectorAll('area');
+                let allCardsHTML = '';
+
+                areas.forEach(area => {
+                    const locationName = area.getAttribute('description');
+                    const humidityNode = area.querySelector('parameter[id="hu"]');
+                    const tempNode = area.querySelector('parameter[id="t"]');
+                    const weatherNode = area.querySelector('parameter[id="weather"]');
+
+                    if (!humidityNode || !tempNode || !weatherNode) return;
+
+                    const forecastTime = weatherNode.querySelector('timerange');
+                    if (!forecastTime) return;
+
+                    const time = new Date(forecastTime.getAttribute('datetime')).toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit' });
+                    const weatherCode = forecastTime.querySelector('value').textContent;
+                    const tempValue = tempNode.querySelector('timerange value[unit="C"]').textContent;
+                    const humidityValue = humidityNode.querySelector('timerange value').textContent;
+                    const weatherIconUrl = `https://www.bmkg.go.id/asset/img/weather_icon/ID/${weatherCode}.png`;
+
+                    allCardsHTML += `
+                        <div class="bg-white p-3 rounded-lg shadow-md flex items-center space-x-3">
+                            <img src="${weatherIconUrl}" alt="Cuaca" class="w-12 h-12">
+                            <div class="flex-grow">
+                                <h3 class="font-bold text-gray-800">${locationName}</h3>
+                                <div class="text-sm text-gray-600 flex justify-between">
+                                    <span>Suhu: ${tempValue}°C</span>
+                                    <span>Kelembapan: ${humidityValue}%</span>
+                                </div>
+                            </div>
+                        </div>
+                    `;
+                });
+
+                container.innerHTML = allCardsHTML;
+
+            } catch (error) {
+                container.innerHTML = '<p class="text-center text-red-500">Gagal memuat data cuaca.</p>';
+                console.error(error);
+            }
+        }
+
+        fetchWeatherData();
+    </script>
+</body>
+</html>
