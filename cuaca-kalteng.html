@@ -13,14 +13,6 @@
     </style>
 </head>
 <body class="p-2">
-    <!-- Kontainer untuk Fitur Ringkasan Gemini -->
-    <div id="summary-container" class="mb-4">
-        <button id="generate-summary-btn" class="w-full bg-blue-600 text-white py-2 px-4 rounded-lg shadow-md hover:bg-blue-700 transition-colors flex items-center justify-center disabled:bg-gray-400 disabled:cursor-not-allowed" disabled>
-            ✨ Buat Ringkasan Cuaca
-        </button>
-        <div id="summary-result" class="mt-4 bg-white p-3 rounded-lg shadow-md hidden"></div>
-    </div>
-
     <!-- Kontainer Carousel -->
     <div id="carousel-container" class="relative w-full overflow-hidden rounded-lg shadow-md bg-white" style="min-height: 80px;">
         <div id="carousel-slides" class="flex transition-transform duration-500 ease-in-out">
@@ -36,9 +28,6 @@
     </div>
 
     <script>
-        // Variabel global untuk menyimpan data cuaca yang akan dikirim ke Gemini
-        let weatherDataForSummary = [];
-
         // Objek untuk menerjemahkan kode cuaca menjadi teks
         const weatherCodeMap = {
             '0': 'Cerah', '1': 'Cerah Berawan', '2': 'Cerah Berawan', '3': 'Berawan', '4': 'Berawan Tebal', '5': 'Udara Kabur', '10': 'Asap', '45': 'Kabut', '60': 'Hujan Ringan', '61': 'Hujan Sedang', '63': 'Hujan Lebat', '80': 'Hujan Lokal', '95': 'Hujan Petir', '97': 'Hujan Petir',
@@ -46,13 +35,11 @@
 
         async function fetchWeatherData() {
             const container = document.getElementById('carousel-slides');
-            const summaryBtn = document.getElementById('generate-summary-btn');
-            const dataUrl = 'https://raw.githubusercontent.com/infoBMKG/data-cuaca/main/DigitalForecast-KalimantanTengah.xml';
-            // PERBAIKAN: Mengganti proxy dengan alternatif yang lebih stabil
-            const proxyUrl = `https://api.allorigins.win/raw?url=${encodeURIComponent(dataUrl)}`;
+            // PERUBAHAN: Tautan sekarang mengarah ke fungsi serverless Anda
+            const functionUrl = '/.netlify/functions/get-weather';
 
             try {
-                const response = await fetch(proxyUrl);
+                const response = await fetch(functionUrl);
                 if (!response.ok) throw new Error('Gagal mengambil data cuaca');
                 
                 const xmlString = await response.text();
@@ -61,7 +48,6 @@
 
                 const areas = xmlDoc.querySelectorAll('area');
                 container.innerHTML = ''; // Kosongkan kontainer sebelum diisi
-                weatherDataForSummary = []; // Kosongkan array setiap kali fetch data
 
                 areas.forEach(area => {
                     const locationName = area.getAttribute('description');
@@ -78,9 +64,6 @@
                     const tempValue = tempNode.querySelector('timerange value[unit="C"]').textContent;
                     const humidityValue = humidityNode.querySelector('timerange value').textContent;
                     const weatherIconUrl = `https://www.bmkg.go.id/asset/img/weather_icon/ID/${weatherCode}.png`;
-                    const weatherDescription = weatherCodeMap[weatherCode] || 'Tidak Diketahui';
-
-                    weatherDataForSummary.push({lokasi: locationName, suhu: `${tempValue}°C`, cuaca: weatherDescription, kelembapan: `${humidityValue}%`});
 
                     const slide = document.createElement('div');
                     slide.className = 'w-full flex-shrink-0 p-3';
@@ -99,7 +82,6 @@
                     container.appendChild(slide);
                 });
 
-                summaryBtn.disabled = false;
                 initializeCarousel(); // Panggil fungsi untuk memulai carousel
 
             } catch (error) {
@@ -113,7 +95,7 @@
             const prevButton = document.getElementById("prev-btn");
             const nextButton = document.getElementById("next-btn");
             const slides = document.querySelectorAll("#carousel-slides > div");
-            if (slides.length <= 1) return; // Jangan jalankan carousel jika hanya ada 1 slide atau kurang
+            if (slides.length <= 1) return;
 
             prevButton.classList.remove('hidden');
             nextButton.classList.remove('hidden');
@@ -136,60 +118,9 @@
 
             setInterval(() => {
                 nextButton.click();
-            }, 3000); // Ganti slide setiap 3 detik
+            }, 3000);
         }
 
-        async function generateSummary() {
-            const summaryResult = document.getElementById('summary-result');
-            const summaryBtn = document.getElementById('generate-summary-btn');
-
-            if (weatherDataForSummary.length === 0) {
-                summaryResult.innerHTML = '<p class="text-red-500">Data cuaca belum tersedia.</p>';
-                summaryResult.classList.remove('hidden');
-                return;
-            }
-
-            summaryBtn.disabled = true;
-            summaryBtn.innerHTML = '✨ Sedang membuat ringkasan...';
-            summaryResult.classList.remove('hidden');
-            summaryResult.innerHTML = '<p class="text-gray-500">Mohon tunggu, Gemini sedang menganalisis data...</p>';
-            
-            const promptData = JSON.stringify(weatherDataForSummary);
-            const prompt = `Anda adalah seorang ahli meteorologi dari BMKG. Berdasarkan data cuaca berikut untuk beberapa wilayah di Kalimantan Tengah: ${promptData}. Berikan ringkasan cuaca singkat (2-3 kalimat) dalam Bahasa Indonesia yang mudah dipahami untuk masyarakat umum. Fokus pada tren umum, suhu rata-rata, dan potensi cuaca signifikan seperti hujan lebat atau cerah.`;
-
-            try {
-                let chatHistory = [{ role: "user", parts: [{ text: prompt }] }];
-                const payload = { contents: chatHistory };
-                const apiKey = "";
-                const apiUrl = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash-preview-05-20:generateContent?key=${apiKey}`;
-
-                const response = await fetch(apiUrl, {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify(payload)
-                });
-                
-                if (!response.ok) throw new Error(`API request failed with status ${response.status}`);
-
-                const result = await response.json();
-                
-                if (result.candidates && result.candidates.length > 0) {
-                    const text = result.candidates[0].content.parts[0].text;
-                    summaryResult.innerHTML = `<p>${text.replace(/\n/g, '<br>')}</p>`;
-                } else {
-                    throw new Error("Struktur respons API tidak valid.");
-                }
-
-            } catch (error) {
-                summaryResult.innerHTML = '<p class="text-red-500">Maaf, terjadi kesalahan saat membuat ringkasan.</p>';
-                console.error("Error calling Gemini API:", error);
-            } finally {
-                summaryBtn.disabled = false;
-                summaryBtn.innerHTML = '✨ Buat Ringkasan Cuaca';
-            }
-        }
-
-        document.getElementById('generate-summary-btn').addEventListener('click', generateSummary);
         fetchWeatherData();
     </script>
 </body>
