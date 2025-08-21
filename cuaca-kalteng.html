@@ -103,7 +103,7 @@
                 initializeCarousel(); // Panggil fungsi untuk memulai carousel
 
             } catch (error) {
-                container.innerHTML = '<p class="w-full text-center text-red-500 p-4">Gagal memuat data cuaca.</p>';
+                container.innerHTML = '<p class="w-full text-center text-red-500 p-4">Gagal memuat data cuaca. Layanan mungkin sedang tidak tersedia.</p>';
                 console.error(error);
             }
         }
