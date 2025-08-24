@@ -20,8 +20,8 @@
     <script>
         async function fetchWeatherData() {
             const container = document.getElementById('weather-display');
-            // PERUBAHAN: Menggunakan API baru dengan kode wilayah spesifik
-            const dataUrl = 'https://api.bmkg.go.id/publik/prakiraan-cuaca?adm4=62.01.02.1003'; // Contoh: Pasir Panjang, Kotawaringin Barat
+            // PERBAIKAN: Menggunakan format kode wilayah yang benar (dengan titik)
+            const dataUrl = 'https://api.bmkg.go.id/publik/prakiraan-cuaca?adm4=62.01.02.1006'; // Contoh: Pasir Panjang, Kotawaringin Barat
             const proxyUrl = `https://corsproxy.io/?${encodeURIComponent(dataUrl)}`;
 
             try {
