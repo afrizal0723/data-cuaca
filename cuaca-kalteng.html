@@ -35,34 +35,34 @@
 
         async function fetchWeatherData() {
             const container = document.getElementById('carousel-slides');
-            // PERUBAHAN: Tautan sekarang mengarah ke fungsi serverless Anda
-            const functionUrl = '/.netlify/functions/get-weather';
+            const dataUrl = 'https://data.bmkg.go.id/DataMKG/MEWS/DigitalForecast/DigitalForecast-KalimantanTengah.json';
+            const proxyUrl = `https://api.allorigins.win/raw?url=${encodeURIComponent(dataUrl)}`;
 
             try {
-                const response = await fetch(functionUrl);
+                const response = await fetch(proxyUrl);
                 if (!response.ok) throw new Error('Gagal mengambil data cuaca');
                 
-                const xmlString = await response.text();
-                const parser = new DOMParser();
-                const xmlDoc = parser.parseFromString(xmlString, "application/xml");
-
-                const areas = xmlDoc.querySelectorAll('area');
+                // PERUBAHAN: Membaca data sebagai JSON
+                const data = await response.json();
+                const areas = data.forecast.area;
                 container.innerHTML = ''; // Kosongkan kontainer sebelum diisi
 
                 areas.forEach(area => {
-                    const locationName = area.getAttribute('description');
-                    const humidityNode = area.querySelector('parameter[id="hu"]');
-                    const tempNode = area.querySelector('parameter[id="t"]');
-                    const weatherNode = area.querySelector('parameter[id="weather"]');
+                    // Mengambil data dari struktur JSON
+                    const locationName = area.description;
+                    const humidityNode = area.parameter.find(p => p.id === 'hu');
+                    const tempNode = area.parameter.find(p => p.id === 't');
+                    const weatherNode = area.parameter.find(p => p.id === 'weather');
 
                     if (!humidityNode || !tempNode || !weatherNode) return;
 
-                    const forecastTime = weatherNode.querySelector('timerange');
+                    // Mengambil data prakiraan pertama yang tersedia (per 3 jam)
+                    const forecastTime = weatherNode.timerange[0];
                     if (!forecastTime) return;
 
-                    const weatherCode = forecastTime.querySelector('value').textContent;
-                    const tempValue = tempNode.querySelector('timerange value[unit="C"]').textContent;
-                    const humidityValue = humidityNode.querySelector('timerange value').textContent;
+                    const weatherCode = forecastTime.value[0].text;
+                    const tempValue = tempNode.timerange[0].value.find(v => v.unit === 'C').text;
+                    const humidityValue = humidityNode.timerange[0].value[0].text;
                     const weatherIconUrl = `https://www.bmkg.go.id/asset/img/weather_icon/ID/${weatherCode}.png`;
 
                     const slide = document.createElement('div');
