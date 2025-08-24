@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Prakiraan Cuaca Kalimantan Tengah</title>
+    <title>Prakiraan Cuaca Detail</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <style>
         body {
@@ -13,112 +13,62 @@
     </style>
 </head>
 <body class="p-2">
-    <!-- Kontainer Carousel -->
-    <div id="carousel-container" class="relative w-full overflow-hidden rounded-lg shadow-md bg-white" style="min-height: 80px;">
-        <div id="carousel-slides" class="flex transition-transform duration-500 ease-in-out">
-            <!-- Slides akan dimuat di sini oleh JavaScript -->
-            <p class="w-full text-center text-gray-500 p-4">Memuat data prakiraan cuaca...</p>
-        </div>
-        <button id="prev-btn" class="absolute top-1/2 left-2 transform -translate-y-1/2 bg-black bg-opacity-30 text-white p-2 rounded-full hover:bg-opacity-50 hidden">
-            &#10094;
-        </button>
-        <button id="next-btn" class="absolute top-1/2 right-2 transform -translate-y-1/2 bg-black bg-opacity-30 text-white p-2 rounded-full hover:bg-opacity-50 hidden">
-            &#10095;
-        </button>
+    <div id="weather-display" class="bg-white p-4 rounded-lg shadow-md">
+        <p class="text-center text-gray-500">Memuat data prakiraan cuaca...</p>
     </div>
 
     <script>
-        // Objek untuk menerjemahkan kode cuaca menjadi teks
-        const weatherCodeMap = {
-            '0': 'Cerah', '1': 'Cerah Berawan', '2': 'Cerah Berawan', '3': 'Berawan', '4': 'Berawan Tebal', '5': 'Udara Kabur', '10': 'Asap', '45': 'Kabut', '60': 'Hujan Ringan', '61': 'Hujan Sedang', '63': 'Hujan Lebat', '80': 'Hujan Lokal', '95': 'Hujan Petir', '97': 'Hujan Petir',
-        };
-
         async function fetchWeatherData() {
-            const container = document.getElementById('carousel-slides');
-            const dataUrl = 'https://data.bmkg.go.id/DataMKG/MEWS/DigitalForecast/DigitalForecast-KalimantanTengah.json';
-            const proxyUrl = `https://api.allorigins.win/raw?url=${encodeURIComponent(dataUrl)}`;
+            const container = document.getElementById('weather-display');
+            const functionUrl = '/.netlify/functions/get-weather';
 
             try {
-                const response = await fetch(proxyUrl);
+                const response = await fetch(functionUrl);
                 if (!response.ok) throw new Error('Gagal mengambil data cuaca');
                 
-                // PERUBAHAN: Membaca data sebagai JSON
                 const data = await response.json();
-                const areas = data.forecast.area;
-                container.innerHTML = ''; // Kosongkan kontainer sebelum diisi
 
-                areas.forEach(area => {
-                    // Mengambil data dari struktur JSON
-                    const locationName = area.description;
-                    const humidityNode = area.parameter.find(p => p.id === 'hu');
-                    const tempNode = area.parameter.find(p => p.id === 't');
-                    const weatherNode = area.parameter.find(p => p.id === 'weather');
+                if (data.error) throw new Error(data.error);
 
-                    if (!humidityNode || !tempNode || !weatherNode) return;
+                const location = data.lokasi;
+                const forecastDays = data.data[0].cuaca;
 
-                    // Mengambil data prakiraan pertama yang tersedia (per 3 jam)
-                    const forecastTime = weatherNode.timerange[0];
-                    if (!forecastTime) return;
+                let contentHTML = `
+                    <div class="border-b pb-3 mb-3">
+                        <h2 class="text-xl font-bold text-blue-800">${location.desa}, ${location.kecamatan}</h2>
+                        <p class="text-sm text-gray-600">${location.kotkab}, ${location.provinsi}</p>
+                    </div>
+                    <div class="space-y-4">
+                `;
 
-                    const weatherCode = forecastTime.value[0].text;
-                    const tempValue = tempNode.timerange[0].value.find(v => v.unit === 'C').text;
-                    const humidityValue = humidityNode.timerange[0].value[0].text;
-                    const weatherIconUrl = `https://www.bmkg.go.id/asset/img/weather_icon/ID/${weatherCode}.png`;
-
-                    const slide = document.createElement('div');
-                    slide.className = 'w-full flex-shrink-0 p-3';
-                    slide.innerHTML = `
-                        <div class="flex items-center space-x-3">
-                            <img src="${weatherIconUrl}" alt="Cuaca" class="w-12 h-12">
-                            <div class="flex-grow">
-                                <h3 class="font-bold text-gray-800">${locationName}</h3>
-                                <div class="text-sm text-gray-600 flex justify-between">
-                                    <span>Suhu: ${tempValue}°C</span>
-                                    <span>Kelembapan: ${humidityValue}%</span>
-                                </div>
+                forecastDays.forEach((day, index) => {
+                    contentHTML += `<div><h3 class="font-semibold text-gray-700 mb-2">Hari ke-${index + 1}</h3><div class="space-y-2">`;
+                    day.forEach(forecast => {
+                        const time = new Date(forecast.local_datetime).toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit' });
+                        const iconUrl = `https://www.bmkg.go.id/asset/img/weather_icon/ID/${forecast.weather_code}.png`;
+                        
+                        contentHTML += `
+                            <div class="bg-gray-50 p-2 rounded-md flex items-center justify-between text-sm">
+                                <span class="font-medium">${time}</span>
+                                <span class="flex items-center">
+                                    <img src="${iconUrl}" alt="${forecast.weather_desc}" class="w-6 h-6 mr-2">
+                                    ${forecast.weather_desc}
+                                </span>
+                                <span class="text-blue-600 font-semibold">${forecast.t}°C</span>
+                                <span class="text-gray-500">${forecast.hu}%</span>
                             </div>
-                        </div>
-                    `;
-                    container.appendChild(slide);
+                        `;
+                    });
+                    contentHTML += `</div></div>`;
                 });
 
-                initializeCarousel(); // Panggil fungsi untuk memulai carousel
+                contentHTML += `</div>`;
+                container.innerHTML = contentHTML;
 
             } catch (error) {
-                container.innerHTML = '<p class="w-full text-center text-red-500 p-4">Gagal memuat data cuaca. Layanan mungkin sedang tidak tersedia.</p>';
+                container.innerHTML = '<p class="text-center text-red-500">Gagal memuat data cuaca. Layanan mungkin sedang tidak tersedia.</p>';
                 console.error(error);
             }
-        }
-
-        function initializeCarousel() {
-            const slidesContainer = document.getElementById("carousel-slides");
-            const prevButton = document.getElementById("prev-btn");
-            const nextButton = document.getElementById("next-btn");
-            const slides = document.querySelectorAll("#carousel-slides > div");
-            if (slides.length <= 1) return;
-
-            prevButton.classList.remove('hidden');
-            nextButton.classList.remove('hidden');
-
-            let currentSlide = 0;
-            const slideCount = slides.length;
-
-            function goToSlide(slideIndex) {
-                slidesContainer.style.transform = `translateX(-${slideIndex * 100}%)`;
-                currentSlide = slideIndex;
-            }
-
-            nextButton.addEventListener("click", () => {
-                goToSlide((currentSlide + 1) % slideCount);
-            });
-
-            prevButton.addEventListener("click", () => {
-                goToSlide((currentSlide - 1 + slideCount) % slideCount);
-            });
-
-            setInterval(() => {
-                nextButton.click();
-            }, 3000);
         }
 
         fetchWeatherData();
