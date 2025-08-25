@@ -21,8 +21,8 @@
         async function fetchWeatherData() {
             const container = document.getElementById('weather-display');
             const dataUrl = 'https://api.bmkg.go.id/publik/prakiraan-cuaca?adm4=62.01.02.1006'; // Contoh: Pasir Panjang, Kotawaringin Barat
-            // PERBAIKAN: Mengganti proxy dengan alternatif lain
-            const proxyUrl = `https://api.allorigins.win/raw?url=${encodeURIComponent(dataUrl)}`;
+            // PERBAIKAN: Mengganti proxy yang bermasalah dengan alternatif lain
+            const proxyUrl = `https://corsproxy.io/?${encodeURIComponent(dataUrl)}`;
 
             try {
                 const response = await fetch(proxyUrl);
